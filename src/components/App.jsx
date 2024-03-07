@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useState, useEffect } from 'react';
 import Searchbar from './Searchbar/Searchbar';
 import ImageGallery from './ImageGallery/ImageGallery';
 import Loader from './Loader/Loader';
@@ -6,85 +6,75 @@ import Button from './Button/Button';
 import Modal from './Modal/Modal';
 import { getAllImagesApi } from '../api/imageGallery';
 
-class App extends Component {
-  state = {
-    modalImageUrl: '',
-    isModalOpen: false,
-    isLoading: false,
-    images: [],
-    currentPage: 1,
-    query: '',
-    hasMoreImages: true,
-  };
+const App = () => {
+  const [modalImageUrl, setModalImageUrl] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [images, setImages] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [query, setQuery] = useState('');
+  const [hasMoreImages, setHasMoreImages] = useState(true);
 
-  async componentDidUpdate(prevProps, prevState) {
-    if (
-      this.state.query !== prevState.query ||
-      prevState.currentPage !== this.state.currentPage
-    ) {
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!query) return;
+      setIsLoading(true);
       try {
-        const { query, currentPage } = this.state;
         const data = await getAllImagesApi(query, currentPage);
-        this.setState(prevState => ({
-          images: [...prevState.images, ...data.hits],
-          hasMoreImages: data.hits.length === 12,
-        }));
+        setImages(prevImages => [...prevImages, ...data.hits]);
+        setHasMoreImages(data.hits.length === 12);
+        setIsLoading(false);
       } catch (error) {
         console.error('Error fetching images:', error);
+        setIsLoading(false);
       }
-    }
-  }
+    };
+    fetchData();
+  }, [query, currentPage]);
 
-  handleImageClick = imageUrl => {
-    this.setState({ modalImageUrl: imageUrl, isModalOpen: true });
+  const handleImageClick = imageUrl => {
+    setModalImageUrl(imageUrl);
+    setIsModalOpen(true);
   };
 
-  handleLoadMore = () => {
-    const { hasMoreImages } = this.state;
+  const handleLoadMore = () => {
     if (!hasMoreImages) return;
 
-    this.setState(prevState => ({
-      currentPage: prevState.currentPage + 1,
-    }));
+    setCurrentPage(prevPage => prevPage + 1);
   };
 
-  handleSearchSubmit = query => {
-    this.setState({
-      query: query,
-      images: [],
-      currentPage: 1,
-      hasMoreImages: false,
-    });
+  const handleSearchSubmit = query => {
+    setQuery(query);
+    setImages([]);
+    setCurrentPage(1);
+    setHasMoreImages(false);
   };
 
-  render() {
-    const { modalImageUrl, isModalOpen, isLoading, images, hasMoreImages } =
-      this.state;
-    const shouldLoadMore = images.length >= 12 && hasMoreImages;
-    return (
-      <div
-        style={{
-          height: '100vh',
-          fontSize: 40,
-          color: '#010101',
-        }}
-      >
-        <Searchbar onSubmit={this.handleSearchSubmit} />
-        <ImageGallery images={images} onImageClick={this.handleImageClick} />
-        {isLoading && <Loader />}
-        {shouldLoadMore && (
-          <Button onClick={this.handleLoadMore} query={this.state.query} />
-        )}
-        {isModalOpen && (
-          <Modal
-            imageUrl={modalImageUrl}
-            isOpen={isModalOpen}
-            onClose={() => this.setState({ isModalOpen: false })}
-          />
-        )}
-      </div>
-    );
-  }
-}
+  const shouldLoadMore = images.length >= 12 && hasMoreImages;
+
+  return (
+    <div
+      style={{
+        height: '100vh',
+        fontSize: 40,
+        color: '#010101',
+      }}
+    >
+      <Searchbar onSubmit={handleSearchSubmit} />
+      {images.length > 0 && (
+        <ImageGallery images={images} onImageClick={handleImageClick} />
+      )}
+      {isLoading && <Loader />}
+      {shouldLoadMore && <Button onClick={handleLoadMore} query={query} />}
+      {isModalOpen && (
+        <Modal
+          imageUrl={modalImageUrl}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
+      )}
+    </div>
+  );
+};
 
 export default App;
